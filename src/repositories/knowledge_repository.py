@@ -492,7 +492,7 @@ curl -X POST 'https://api.crustdata.com/job/search/autocomplete' \\
     ),
     # ── Web Search ────────────────────────────────────────────────────
     ApiEndpoint(
-        endpoint_id="web_search",
+        endpoint_id="agents.web_search",
         category="web",
         name="Web Search",
         method="POST",

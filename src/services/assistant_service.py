@@ -1,21 +1,20 @@
-"""Assistant service — the core business-logic orchestrator.
-
-This is the *service layer*. It wires together the components using a stateful
-LangGraph workflow:
-  1. extract_preferences: Updates programming language and access token configurations.
-  2. retrieve_docs: Runs RAG to find matching API endpoints.
-  3. call_llm: Generates the answer using the context and configurations.
-"""
-
 from __future__ import annotations
 
 import json
 import logging
 import re
+import uuid
 from typing import Any
 
+import asyncio
+from fastapi import HTTPException
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
+
+from src.agents.memory_agent import extract_and_save_preferences
+
 from src.agents.graph_workflow import build_assistant_graph
-from src.models.chat import ChatResponse, EndpointSnippet
+from src.schema.chat import ChatResponse, EndpointSnippet
 from src.repositories.knowledge_repository import KnowledgeRepository
 from src.repositories.session_repository import SessionRepository
 from src.services.llm_service import LlmService
@@ -26,18 +25,18 @@ logger = logging.getLogger(__name__)
 class AssistantService:
     """Orchestrates answering a user question about Crustdata APIs.
 
-    Flow is managed using a LangGraph workflow.
+    Flow is managed using a LangGraph supervisor workflow.
     """
 
     def __init__(
         self,
         knowledge_repo: KnowledgeRepository,
-        session_repo: SessionRepository,
         llm_service: LlmService,
+        session_repo: SessionRepository,
     ) -> None:
         self._repo = knowledge_repo
-        self._session_repo = session_repo
         self._llm = llm_service
+        self._session_repo = session_repo
         # Compile the LangGraph workflow
         self._graph = build_assistant_graph(self._repo, self._llm)
 
@@ -49,51 +48,90 @@ class AssistantService:
         """Given a natural-language question, return a structured response
         with an explanation, relevant endpoints, and documentation links.
 
-        Execution is orchestrated through a LangGraph workflow.
+        Execution is orchestrated through a LangGraph supervisor workflow.
         """
-        # 1. Load history and preferences if active conversation
-        history = []
-        preferences = {}
-        if conversation_id:
-            history = await self._session_repo.get_history(conversation_id)
-            preferences = await self._session_repo.get_preferences(conversation_id)
+        try:
+            # 1. Load history if active conversation.
+            history_dicts: list[dict[str, Any]] = []
+            preferences = {}
+            if conversation_id:
+                history_dicts = await self._session_repo.get_history(conversation_id)
+                preferences = await self._session_repo.get_preferences(conversation_id)
 
-        # 2. Build initial state for the LangGraph
-        initial_state = {
-            "messages": history,
-            "preferences": preferences,
-            "context": "",
-            "last_user_message": question,
-            "raw_answer": "",
-        }
+            # 2. Convert history dicts to LangChain message objects.
+            messages: list[HumanMessage | AIMessage] = []
+            for msg in history_dicts:
+                if msg.get("role") == "user":
+                    messages.append(HumanMessage(content=msg["content"]))
+                else:
+                    messages.append(AIMessage(content=msg["content"]))
 
-        # 3. Run the LangGraph execution flow
-        final_state = await self._graph.ainvoke(initial_state)
-        raw_answer = final_state.get("raw_answer", "")
-        updated_prefs = final_state.get("preferences", {})
+            # Prepend SystemMessage with user preferences if they exist
+            if preferences:
+                prefs_str = json.dumps(preferences, indent=2)
+                sys_msg = SystemMessage(
+                    content=f"Remember these long-term facts about the user:\n{prefs_str}"
+                )
+                messages.insert(0, sys_msg)
 
-        # 4. Search endpoints matching the question for fallback reference metadata
-        relevant_endpoints = self._repo.search(question, limit=5)
-        if not relevant_endpoints:
-            relevant_endpoints = self._repo.get_all_endpoints()
+            # Append the current user question.
+            messages.append(HumanMessage(content=question))
 
-        # 5. Parse structured endpoints from the LLM response
-        endpoints, sources = self._parse_response(raw_answer, relevant_endpoints)
+            # 3. Build initial state for the LangGraph supervisor.
+            initial_state = {
+                "messages": messages,
+            }
 
-        # Clean the answer (remove the JSON block from the displayed text)
-        clean_answer = self._strip_json_block(raw_answer)
+            # LangGraph requires a thread_id for the checkpointer.
+            config = RunnableConfig(configurable={"thread_id": conversation_id or str(uuid.uuid4())})
 
-        # 6. Save history and updated preferences if active conversation
-        if conversation_id:
-            await self._session_repo.save_preferences(conversation_id, updated_prefs)
-            await self._session_repo.append_message(conversation_id, "user", question)
-            await self._session_repo.append_message(conversation_id, "model", clean_answer)
+            # 4. Run the LangGraph execution flow.
+            final_state = await self._graph.ainvoke(initial_state, config=config)
 
-        return ChatResponse(
-            answer=clean_answer,
-            endpoints=endpoints,
-            sources=sources,
-        )
+            # 5. Extract the AI response from the final messages.
+            final_messages = final_state.get("messages", [])
+            raw_answer = ""
+            for msg in reversed(final_messages):
+                if isinstance(msg, AIMessage):
+                    raw_answer = str(msg.content)
+                    break
+
+            if not raw_answer:
+                raw_answer = "I'm sorry, I couldn't generate a response. Please try again."
+
+            # 6. Search endpoints matching the question for fallback reference metadata.
+            relevant_endpoints = self._repo.search(question, limit=5)
+            if not relevant_endpoints:
+                relevant_endpoints = self._repo.get_all_endpoints()
+            
+            # 7. Parse structured endpoints from the LLM response.
+            endpoints, sources = self._parse_response(raw_answer, relevant_endpoints)
+            
+            # Clean the answer (remove the JSON block from the displayed text).
+            clean_answer = self._strip_json_block(raw_answer)
+            
+            # 8. Save history if active conversation.
+            if conversation_id:
+                await self._session_repo.append_message(conversation_id, "user", question)
+                await self._session_repo.append_message(conversation_id, "model", clean_answer)
+                
+                # Fire and forget the background memory extractor
+                asyncio.create_task(
+                    extract_and_save_preferences(
+                        question, conversation_id, self._session_repo, self._llm
+                    )
+                )
+
+            return ChatResponse(
+                answer=clean_answer,
+                endpoints=endpoints,
+                sources=sources,
+            )
+        except Exception as exc:
+            logger.exception("Assistant error")
+            raise HTTPException(
+                status_code=500, detail=f"Assistant error: {exc}"
+            ) from exc
 
     async def list_endpoints(self, category: str | None = None) -> list[dict[str, Any]]:
         """Return a summary of available endpoints, optionally filtered by category."""
@@ -113,10 +151,6 @@ class AssistantService:
             }
             for ep in endpoints
         ]
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
     @staticmethod
     def _parse_response(
@@ -168,4 +202,6 @@ class AssistantService:
     @staticmethod
     def _strip_json_block(text: str) -> str:
         """Remove the trailing ```json ... ``` block from the display answer."""
-        return re.sub(r"\s*```json\s*\[.*?]\s*```\s*$", "", text, flags=re.DOTALL).strip()
+        return re.sub(
+            r"\s*```json\s*\[.*?]\s*```\s*$", "", text, flags=re.DOTALL
+        ).strip()

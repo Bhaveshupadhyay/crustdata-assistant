@@ -1,23 +1,19 @@
-"""LLM service interface and provider implementations.
-
-This module defines the abstract LlmService class (the interface) and
-concrete provider implementations (like GeminiLlmService) to allow swapping
-or using multiple LLM backends easily.
-"""
-
 from __future__ import annotations
 
+import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, TypeVar, Type
 
 from google import genai
 from google.genai import types
+from pydantic import BaseModel
 
+from src.models.llm import LLMResponse, ToolCall
 from src.core.settings import settings
 
 logger = logging.getLogger(__name__)
-
+T = TypeVar("T", bound=BaseModel)
 
 class LlmService(ABC):
     """Abstract base class representing an LLM client interface."""
@@ -30,26 +26,35 @@ class LlmService(ABC):
         *,
         temperature: float = 0.3,
         max_output_tokens: int = 4096,
+        tools: list[Any] | None = None,
+    ) -> LLMResponse:
+        """Send a prompt (or conversation history) to the LLM and return the response."""
+        ...
+
+    @abstractmethod
+    async def generate_structured(
+        self,
+        prompt: str | list[dict[str, Any]],
+        response_schema: Type[T],
+        system_instruction: str = "",
+        temperature: float = 0.1,
+    ) -> T:
+        """Generate a structured response conforming to the given Pydantic schema."""
+        ...
+
+    async def generate_text(
+        self,
+        prompt: str,
+        system_instruction: str = "",
+        temperature: float = 0.3,
     ) -> str:
-        """Send a prompt (or conversation history) to the LLM and return the text response.
-
-        Parameters
-        ----------
-        system_prompt:
-            The system-level instruction that shapes model behaviour.
-        user_prompt:
-            The actual user query (string) or list of conversation history dicts.
-        temperature:
-            Sampling temperature. Lower = more deterministic.
-        max_output_tokens:
-            Hard cap on the response length.
-
-        Returns
-        -------
-        str
-            The model's text response.
-        """
-        pass
+        """Convenience wrapper — generate a plain text response."""
+        response = await self.generate(
+            system_prompt=system_instruction,
+            user_prompt=prompt,
+            temperature=temperature,
+        )
+        return response.text
 
 
 class GeminiLlmService(LlmService):
@@ -60,6 +65,51 @@ class GeminiLlmService(LlmService):
         self._client = genai.Client(api_key=settings.gemini_api_key)
         self._model = settings.gemini_model
 
+    def _format_contents(
+        self, prompt: str | list[dict[str, Any]]
+    ) -> list[types.Content]:
+        """Convert a prompt (string or chat history dicts) to Gemini-compatible contents."""
+        if isinstance(prompt, str):
+            return [
+                types.Content(role="user", parts=[types.Part.from_text(text=prompt)])
+            ]
+
+        contents: list[types.Content] = []
+        for msg in prompt:
+            role = "user" if msg.get("role") == "user" else "model"
+            parts = []
+
+            if msg.get("content"):
+                parts.append(types.Part.from_text(text=msg["content"]))
+
+            if "tool_calls" in msg:
+                signatures = msg.get("additional_kwargs", {}).get("thought_signatures", {})
+                for call in msg["tool_calls"]:
+                    ts_hex = signatures.get(call.get("id"))
+                    ts_bytes = bytes.fromhex(ts_hex) if ts_hex else None
+                    parts.append(
+                        types.Part(
+                            function_call=types.FunctionCall(
+                                name=call["name"], args=call["args"], id=call.get("id")
+                            ),
+                            thought_signature=ts_bytes
+                        )
+                    )
+
+            if "tool_responses" in msg:
+                for resp in msg["tool_responses"]:
+                    parts.append(
+                        types.Part.from_function_response(
+                            name=resp["name"], response=resp["response"]
+                        )
+                    )
+
+            if parts:
+                contents.append(types.Content(role=role, parts=parts))
+
+        return contents
+
+
     async def generate(
         self,
         system_prompt: str,
@@ -67,34 +117,71 @@ class GeminiLlmService(LlmService):
         *,
         temperature: float = 0.3,
         max_output_tokens: int = 4096,
-    ) -> str:
-        """Send a prompt (or conversation history) to Gemini and return the text response."""
+        tools: list[Any] | None = None,
+    ) -> LLMResponse:
+        """Send a prompt (or conversation history) to Gemini and return the response."""
         try:
-            # Format contents based on input type
-            if isinstance(user_prompt, str):
-                contents = user_prompt
-            else:
-                # Convert standard chat history dicts to Google GenAI Content types
-                contents = []
-                for msg in user_prompt:
-                    role = "user" if msg.get("role") == "user" else "model"
-                    contents.append(
-                        types.Content(
-                            role=role,
-                            parts=[types.Part.from_text(text=msg.get("content", ""))],
-                        )
-                    )
+            contents = self._format_contents(user_prompt)
+            config_args = {
+                "system_instruction": system_prompt,
+                "temperature": temperature,
+                "max_output_tokens": max_output_tokens,
+            }
+            if tools:
+                config_args["tools"] = tools
 
             response = self._client.models.generate_content(
                 model=self._model,
                 contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    temperature=temperature,
-                    max_output_tokens=max_output_tokens,
-                ),
+                config=types.GenerateContentConfig(**config_args),
             )
-            return response.text or ""
+
+            tool_calls = []
+            if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
+                for p in response.candidates[0].content.parts:
+                    if p.function_call:
+                        args_dict = dict(p.function_call.args) if p.function_call.args else {}
+                        ts_hex = p.thought_signature.hex() if p.thought_signature else None
+                        call_id = getattr(p.function_call, "id", None)
+                        tool_calls.append(
+                            ToolCall(
+                                name=p.function_call.name, 
+                                args=args_dict, 
+                                id=call_id, 
+                                thought_signature_hex=ts_hex
+                            )
+                        )
+
+            return LLMResponse(text=response.text or "", tool_calls=tool_calls)
         except Exception:
             logger.exception("Gemini API call failed")
+            raise
+
+    async def generate_structured(
+        self,
+        prompt: str | list[dict[str, Any]],
+        response_schema: Type[T],
+        system_instruction: str = "",
+        temperature: float = 0.1,
+    ) -> T:
+        """Generate a structured JSON response and parse it into the given Pydantic model."""
+        try:
+            contents = self._format_contents(prompt)
+            response = self._client.models.generate_content(
+                model=self._model,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=temperature,
+                    response_mime_type="application/json",
+                    response_schema=response_schema,
+                ),
+            )
+            raw_text = response.text or "{}"
+            return response_schema.model_validate_json(raw_text)
+        except json.JSONDecodeError:
+            logger.exception("Failed to parse structured LLM response")
+            raise
+        except Exception:
+            logger.exception("Gemini structured generation failed")
             raise

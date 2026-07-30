@@ -39,6 +39,6 @@ def get_assistant_service() -> AssistantService:
     """Dependency provider that returns the cached AssistantService instance."""
     return AssistantService(
         knowledge_repo=get_knowledge_repo(),
-        session_repo=get_session_repo(),
         llm_service=get_llm_service(),
+        session_repo=get_session_repo(),
     )

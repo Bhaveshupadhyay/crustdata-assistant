@@ -1,12 +1,3 @@
-"""FastAPI application entry point.
-
-Wires together:
-- Configuration (``settings``)
-- Router layer (``chat_router``)
-
-Run with:  uvicorn src.main:app --reload --port 8000
-"""
-
 from __future__ import annotations
 
 import logging
@@ -17,11 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.router import routers
 from src.core.lifecycle import app_lifespan
 from src.core.settings import settings
-from src.models.chat import HealthResponse
+from src.schema.health_response import HealthResponse
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
     format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
