@@ -22,10 +22,6 @@ logger = logging.getLogger(__name__)
 
 
 class AssistantService:
-    """Orchestrates answering a user question about Crustdata APIs.
-
-    Flow is managed using a LangGraph supervisor workflow.
-    """
 
     def __init__(
         self,
@@ -34,7 +30,6 @@ class AssistantService:
     ) -> None:
         self._llm = llm_service
         self._session_repo = session_repo
-        # Compile the LangGraph workflow
         self._graph = build_assistant_graph(self._llm)
 
     async def answer_question(
@@ -42,11 +37,6 @@ class AssistantService:
         question: str,
         conversation_id: str | None = None,
     ) -> ChatResponse:
-        """Given a natural-language question, return a structured response
-        with an explanation, relevant endpoints, and documentation links.
-
-        Execution is orchestrated through a LangGraph supervisor workflow.
-        """
         try:
             # 1. Load history if active conversation.
             history_dicts: list[dict[str, Any]] = []
@@ -96,10 +86,8 @@ class AssistantService:
                 raw_answer = "I'm sorry, I couldn't generate a response. Please try again."
 
 
-            # 8. Save history if active conversation.
+            # 8. Save user preferences.
             if conversation_id:
-
-                # Fire and forget the background memory extractor
                 asyncio.create_task(
                     extract_and_save_preferences(
                         question, conversation_id, self._session_repo, self._llm

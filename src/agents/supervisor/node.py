@@ -1,5 +1,3 @@
-"""Supervisor node — classifies user intent and routes to the correct agent."""
-
 import logging
 
 from langchain_core.messages import AIMessage, HumanMessage
