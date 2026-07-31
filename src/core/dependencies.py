@@ -8,7 +8,6 @@ from src.services.assistant_service import AssistantService
 from src.services.llm_service import GeminiLlmService, LlmService
 
 
-
 @lru_cache(maxsize=1)
 def get_llm_service() -> LlmService:
     """Dependency provider that returns the configured concrete LlmService instance."""

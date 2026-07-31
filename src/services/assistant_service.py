@@ -1,23 +1,22 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
 import uuid
 from typing import Any
 
-import asyncio
 from fastapi import HTTPException
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
-from src.agents.memory_agent import extract_and_save_preferences
-from src.shared.constants import MessageRole
-
 from src.agents.graph_workflow import build_assistant_graph
-from src.schema.chat import ChatResponse, EndpointSnippet
+from src.agents.memory_agent import extract_and_save_preferences
 from src.repositories.session_repository import SessionRepository
+from src.schema.chat import ChatResponse, EndpointSnippet
 from src.services.llm_service import LlmService
+from src.shared.constants import MessageRole
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +69,9 @@ class AssistantService:
             }
 
             # LangGraph requires a thread_id for the checkpointer.
-            config = RunnableConfig(configurable={"thread_id": conversation_id or str(uuid.uuid4())})
+            config = RunnableConfig(
+                configurable={"thread_id": conversation_id or str(uuid.uuid4())}
+            )
 
             # 4. Run the LangGraph execution flow.
             final_state = await self._graph.ainvoke(initial_state, config=config)
@@ -115,4 +116,3 @@ class AssistantService:
             raise HTTPException(
                 status_code=500, detail=f"Assistant error: {exc}"
             ) from exc
-

@@ -1,7 +1,8 @@
 from typing import Any
+
 from pydantic import BaseModel, Field
 
-from src.schema.chat import ServerActionType, EndpointSnippet
+from src.schema.chat import EndpointSnippet, ServerActionType
 
 
 class DocAgentResponse(BaseModel):

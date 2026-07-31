@@ -2,10 +2,11 @@ import inspect
 import json
 import logging
 from functools import wraps
-from typing import Optional, Type, Any
-from core.client import get_redis_client
+from typing import Any, Optional, Type
 
 from pydantic import TypeAdapter
+
+from core.client import get_redis_client
 
 logger = logging.getLogger(__name__)
 def cached(
@@ -58,7 +59,11 @@ async def insert_redis_data(
         redis_ttl: int = 3600,
         data: Any = None,
 ):
-    await get_redis_client().set(key=get_redis_key(namespace=namespace,key_parts=[key]), value=json.dumps(data), ex=redis_ttl)
+    await get_redis_client().set(
+        key=get_redis_key(namespace=namespace, key_parts=[key]),
+        value=json.dumps(data),
+        ex=redis_ttl,
+    )
 
 
 def get_redis_key(namespace: str, key_parts: list[str]) -> str:

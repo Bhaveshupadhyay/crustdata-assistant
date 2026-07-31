@@ -17,7 +17,8 @@ ROUTING CRITERIA:
 
 - Route to `doc_search` if the user's message is about:
   - Finding an API endpoint (e.g., "What's the endpoint to get job data?").
-  - Understanding request parameters or body schema (e.g., "What filters does company search support?").
+  - Understanding request parameters or body schema (e.g.,
+    "What filters does company search support?").
   - Getting a curl example (e.g., "Show me how to call the person enrichment API").
   - Any question about Crustdata API functionality, authentication, headers, or usage.
   - Asking about categories of endpoints (e.g., "What company APIs are available?").

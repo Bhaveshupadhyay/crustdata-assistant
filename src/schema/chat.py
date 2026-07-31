@@ -1,4 +1,5 @@
 from enum import Enum
+
 from pydantic import BaseModel, Field
 
 
@@ -28,7 +29,10 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str = Field(..., description="Natural-language answer to the user's question.")
-    endpoints: list["EndpointSnippet"] = Field(default_factory=list, description="Extracted API endpoints")
+    endpoints: list["EndpointSnippet"] = Field(
+        default_factory=list,
+        description="Extracted API endpoints",
+    )
     action_type: ServerActionType | None = None
 
 class EndpointSnippet(BaseModel):

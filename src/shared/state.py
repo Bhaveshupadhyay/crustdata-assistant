@@ -8,7 +8,10 @@ from pydantic import BaseModel
 
 from src.shared.constants import RouteAction
 
-def add_messages_limited(left: list[AnyMessage], right: list[AnyMessage] | AnyMessage) -> list[AnyMessage]:
+
+def add_messages_limited(
+    left: list[AnyMessage], right: list[AnyMessage] | AnyMessage
+) -> list[AnyMessage]:
     return add_messages(left, right)[-6:]  # type: ignore
 
 class GlobalState(BaseModel):
