@@ -98,14 +98,15 @@ class AssistantService:
 
             # Extract endpoints JSON block if present
             endpoints = []
-            json_match = re.search(r"```json\s*\n(.*?)\n```", raw_answer, re.DOTALL)
+            json_match = re.search(r"```json endpoints\s*\n(.*?)\n```", raw_answer, re.DOTALL)
             if json_match:
                 try:
                     endpoints_data = json.loads(json_match.group(1))
-                    endpoints = [EndpointSnippet(**ep) for ep in endpoints_data]
+                    if isinstance(endpoints_data, list):
+                        endpoints = [EndpointSnippet(**ep) for ep in endpoints_data]
                     raw_answer = raw_answer[:json_match.start()].strip()
-                except json.JSONDecodeError:
-                    logger.warning("Failed to parse endpoints JSON block")
+                except Exception as e:
+                    logger.warning("Failed to parse endpoints JSON block: %s", e)
 
             return ChatResponse(
                 answer=raw_answer,
