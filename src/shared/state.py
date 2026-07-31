@@ -8,6 +8,8 @@ from pydantic import BaseModel
 
 from src.shared.constants import RouteAction
 
+def add_messages_limited(left: list[AnyMessage], right: list[AnyMessage] | AnyMessage) -> list[AnyMessage]:
+    return add_messages(left, right)[-6:]  # type: ignore
 
 class GlobalState(BaseModel):
     """Shared state passed between supervisor and worker agents.
@@ -19,7 +21,7 @@ class GlobalState(BaseModel):
     """
 
     # Append-only: LangGraph's add_messages reducer handles deduplication by ID.
-    messages: Annotated[list[AnyMessage], add_messages] = []
+    messages: Annotated[list[AnyMessage], add_messages_limited] = []
 
     # Routing — set by the Supervisor to decide the next step.
     next_action: RouteAction | None = None

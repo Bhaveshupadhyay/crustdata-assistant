@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, ToolMessage, SystemMessage
 
 
 def format_langchain_messages_for_llm(
@@ -37,8 +37,11 @@ def format_langchain_messages_for_llm(
                         {
                             "name": msg.name,
                             "response": {"result": str(msg.content)},
+                            "id": getattr(msg, "tool_call_id", None),
                         }
                     ],
                 }
             )
+        elif isinstance(msg, SystemMessage):
+            chat_history.append({"role": "user", "content": str(msg.content)})
     return chat_history

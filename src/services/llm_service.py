@@ -99,8 +99,12 @@ class GeminiLlmService(LlmService):
             if "tool_responses" in msg:
                 for resp in msg["tool_responses"]:
                     parts.append(
-                        types.Part.from_function_response(
-                            name=resp["name"], response=resp["response"]
+                        types.Part(
+                            function_response=types.FunctionResponse(
+                                name=resp["name"], 
+                                response=resp["response"],
+                                id=resp.get("id")
+                            )
                         )
                     )
 

@@ -10,7 +10,6 @@ from models.llm import DocAgentResponse
 from src.agents.doc.prompt import DOC_AGENT_SYSTEM_PROMPT
 from src.shared.utils import format_langchain_messages_for_llm
 from src.agents.doc.tools import get_doc_tool_declarations
-from src.repositories.knowledge_repository import KnowledgeRepository
 from src.services.llm_service import LlmService
 from src.shared.state import GlobalState
 
@@ -21,10 +20,8 @@ class DocNode:
 
     def __init__(
         self,
-        knowledge_repo: KnowledgeRepository,
         llm_service: LlmService,
     ) -> None:
-        self._repo = knowledge_repo
         self._llm = llm_service
 
     async def __call__(self, state: GlobalState) -> dict:
@@ -40,7 +37,7 @@ class DocNode:
             tools=tools,
             temperature=0.2,
         )
-        print(response)
+        print('fist_response', response,state.messages)
         if response.tool_calls:
             # Return an AIMessage with tool_calls. LangGraph will route to doc_tools.
             lc_tool_calls = []
@@ -69,7 +66,7 @@ class DocNode:
             chat_history.append(
                 {
                     "role": "user",
-                    "content": "Now that you have all the information, provide a complete, detailed answer to the user's question, including any requested code snippets or technical details. Also, extract the relevant endpoints.",
+                    "content": "Now that you have all the information, provide a complete, detailed answer to the user's question, including any requested code snippets or technical details. If you generate or receive code, write the code exactly as it is—do not shorten, summarize, or truncate it. Also, extract the relevant endpoints.",
                 }
             )
 
@@ -79,7 +76,6 @@ class DocNode:
                 system_instruction=DOC_AGENT_SYSTEM_PROMPT,
                 temperature=0.1,
             )
-
             # Format the output for the AssistantService parser
             endpoints_list = [ep.model_dump() for ep in structured_resp.endpoints]
             endpoints_json = json.dumps(endpoints_list, indent=2)

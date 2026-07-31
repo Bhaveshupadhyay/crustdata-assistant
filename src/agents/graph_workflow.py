@@ -9,7 +9,6 @@ from src.agents.doc.node import DocNode
 from src.agents.doc.tools_node import DocToolsNode
 from src.agents.supervisor.node import SupervisorNode
 from src.agents.web_search.node import WebSearchNode
-from src.repositories.knowledge_repository import KnowledgeRepository
 from src.services.llm_service import LlmService
 from src.shared.constants import RouteAction
 from src.shared.state import GlobalState
@@ -35,7 +34,6 @@ def _route_after_doc(state: GlobalState) -> str:
     return "to_supervisor"
 
 def build_assistant_graph(
-    knowledge_repo: KnowledgeRepository,
     llm_service: LlmService,
 ) -> CompiledStateGraph:
     """Build and compile the multi-agent LangGraph workflow.
@@ -58,7 +56,7 @@ def build_assistant_graph(
     """
     # 1. Instantiate agent nodes with their dependencies.
     supervisor_node = SupervisorNode(llm_service=llm_service)
-    doc_node = DocNode(knowledge_repo=knowledge_repo, llm_service=llm_service)
+    doc_node = DocNode(llm_service=llm_service)
     doc_tools_node = DocToolsNode()
     web_search_node = WebSearchNode()
 

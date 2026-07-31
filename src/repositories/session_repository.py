@@ -1,67 +1,44 @@
-"""Session repository — stores and retrieves chat history lists in Upstash Redis.
-
-This handles the raw storage of multi-turn conversations.
-"""
+"""Session repository — stores and retrieves chat history and preferences in PostgreSQL, with Redis caching."""
 
 from __future__ import annotations
 
-import json
+import logging
 from typing import Any
-import os
+from sqlalchemy.orm import sessionmaker
 
-from upstash_redis.asyncio import Redis
+from src.models.session import ChatSession
+from src.core.cache import cached, insert_redis_data
+
+logger = logging.getLogger(__name__)
 
 
 class SessionRepository:
-    """Manages chat session history and user preferences in Redis."""
+    """Manages chat session history and user preferences in Postgres with Redis caching."""
 
-    # In-memory fallback if Redis is not configured
-    _memory_store: dict[str, Any] = {}
+    def __init__(self, session_maker: sessionmaker) -> None:
+        self._session_maker = session_maker
 
-    def __init__(self, redis_client: Redis) -> None:
-        self._redis = redis_client
-        self._ttl = 86400
-        # Check if we should use memory fallback
-        url = os.getenv("UPSTASH_REDIS_REST_URL", "")
-        self._use_memory = "your-upstash" in url or "http" not in url
-
-    def _get_key(self, conversation_id: str) -> str:
-        return f"session:{conversation_id}:history"
-
-    def _get_prefs_key(self, conversation_id: str) -> str:
-        return f"session:{conversation_id}:preferences"
-
+    @cached(namespace="session_history", key=["conversation_id"])
     async def get_history(self, conversation_id: str) -> list[dict[str, Any]]:
-        """Retrieve the raw conversation history list."""
-        key = self._get_key(conversation_id)
-        if self._use_memory:
-            data = self._memory_store.get(key)
-        else:
-            data = await self._redis.get(key)
-            
-        if not data:
-            return []
-            
-        # Memory store keeps python objects directly
-        if self._use_memory:
-            return data
-            
-        try:
-            return json.loads(data)
-        except (json.JSONDecodeError, TypeError):
+        """Retrieve the raw conversation history list from Postgres (cached)."""
+        with self._session_maker() as session:
+            db_session = session.query(ChatSession).filter_by(conversation_id=conversation_id).first()
+            if db_session and db_session.history:
+                return db_session.history
             return []
 
     async def save_history(self, conversation_id: str, history: list[dict[str, Any]]) -> None:
-        """Overwrite the conversation history list in Redis."""
-        key = self._get_key(conversation_id)
-        if self._use_memory:
-            self._memory_store[key] = history
-        else:
-            await self._redis.set(
-                key,
-                json.dumps(history, ensure_ascii=False),
-                ex=self._ttl,
-            )
+        """Overwrite the conversation history list in Postgres and invalidate cache."""
+        with self._session_maker() as session:
+            db_session = session.query(ChatSession).filter_by(conversation_id=conversation_id).first()
+            if not db_session:
+                db_session = ChatSession(conversation_id=conversation_id)
+                session.add(db_session)
+            db_session.history = history
+            session.commit()
+            
+        # Update cache directly so the next read is instant
+        await insert_redis_data(key=conversation_id, namespace="session_history", data=history)
 
     async def append_message(self, conversation_id: str, role: str, content: str) -> None:
         """Append a single message to the session history."""
@@ -71,45 +48,34 @@ class SessionRepository:
 
     async def clear_history(self, conversation_id: str) -> None:
         """Delete the conversation history and preferences."""
-        key = self._get_key(conversation_id)
-        prefs_key = self._get_prefs_key(conversation_id)
-        
-        if self._use_memory:
-            self._memory_store.pop(key, None)
-            self._memory_store.pop(prefs_key, None)
-        else:
-            await self._redis.delete(key)
-            await self._redis.delete(prefs_key)
+        with self._session_maker() as session:
+            db_session = session.query(ChatSession).filter_by(conversation_id=conversation_id).first()
+            if db_session:
+                session.delete(db_session)
+                session.commit()
 
+        # We should also invalidate cache but setting to empty clears it
+        await insert_redis_data(key=conversation_id, namespace="session_history", data=[])
+        await insert_redis_data(key=conversation_id, namespace="session_prefs", data={})
+
+    @cached(namespace="session_prefs", key=["conversation_id"])
     async def get_preferences(self, conversation_id: str) -> dict[str, Any]:
-        """Retrieve user preference state from Redis."""
-        key = self._get_prefs_key(conversation_id)
-        
-        if self._use_memory:
-            data = self._memory_store.get(key)
-        else:
-            data = await self._redis.get(key)
-            
-        if not data:
-            return {}
-            
-        if self._use_memory:
-            return data
-            
-        try:
-            return json.loads(data)
-        except (json.JSONDecodeError, TypeError):
+        """Retrieve user preference state from Postgres (cached)."""
+        with self._session_maker() as session:
+            db_session = session.query(ChatSession).filter_by(conversation_id=conversation_id).first()
+            if db_session and db_session.preferences:
+                return db_session.preferences
             return {}
 
     async def save_preferences(self, conversation_id: str, prefs: dict[str, Any]) -> None:
-        """Save user preference state to Redis."""
-        key = self._get_prefs_key(conversation_id)
-        
-        if self._use_memory:
-            self._memory_store[key] = prefs
-        else:
-            await self._redis.set(
-                key,
-                json.dumps(prefs, ensure_ascii=False),
-                ex=self._ttl,
-            )
+        """Save user preference state to Postgres and invalidate cache."""
+        with self._session_maker() as session:
+            db_session = session.query(ChatSession).filter_by(conversation_id=conversation_id).first()
+            if not db_session:
+                db_session = ChatSession(conversation_id=conversation_id)
+                session.add(db_session)
+            db_session.preferences = prefs
+            session.commit()
+
+        # Update cache
+        await insert_redis_data(key=conversation_id, namespace="session_prefs", data=prefs)

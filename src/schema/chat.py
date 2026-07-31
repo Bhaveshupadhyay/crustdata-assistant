@@ -28,14 +28,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     answer: str = Field(..., description="Natural-language answer to the user's question.")
-    endpoints: list[EndpointSnippet] = Field(
-        default_factory=list,
-        description="Relevant API endpoints with curl examples.",
-    )
-    sources: list[str] = Field(
-        default_factory=list,
-        description="Links to the official documentation pages used.",
-    )
+    endpoints: list["EndpointSnippet"] = Field(default_factory=list, description="Extracted API endpoints")
     action_type: ServerActionType | None = None
 
 class EndpointSnippet(BaseModel):
