@@ -13,15 +13,15 @@ def add_messages_limited(
     left: list[AnyMessage], right: list[AnyMessage] | AnyMessage
 ) -> list[AnyMessage]:
     from langchain_core.messages import ToolMessage
-    
+
     messages = add_messages(left, right)
     if len(messages) <= 6:
         return messages
-        
+
     sliced = messages[-6:]
     while sliced and isinstance(sliced[0], ToolMessage):
         sliced.pop(0)
-        
+
     return sliced
 
 class GlobalState(BaseModel):
