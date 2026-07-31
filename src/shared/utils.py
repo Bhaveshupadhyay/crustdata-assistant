@@ -1,5 +1,3 @@
-"""Utility functions shared across the application."""
-
 from typing import Any
 
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, ToolMessage, SystemMessage

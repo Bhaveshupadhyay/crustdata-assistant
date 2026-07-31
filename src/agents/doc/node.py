@@ -1,5 +1,3 @@
-"""Documentation agent node — searches the API knowledge base and generates answers."""
-
 import json
 import logging
 import uuid
