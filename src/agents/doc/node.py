@@ -58,41 +58,8 @@ class DocNode:
             ).get_updates()
 
         # If no tool calls were requested, the model is ready to answer.
-        try:
-            # We add a final prompt to force the structured output
-            chat_history.append({"role": MessageRole.MODEL, "content": response.text})
-            chat_history.append(
-                {
-                    "role": MessageRole.USER,
-                    "content": (
-                        "Now that you have all the information, provide a complete, detailed "
-                        "answer to the user's question, including any requested code snippets "
-                        "or technical details. If you generate or receive code, write the code "
-                        "exactly as it is—do not shorten, summarize, or truncate it. Also, "
-                        "extract the relevant endpoints."
-                    ),
-                }
-            )
-
-            structured_resp: DocAgentResponse = await self._llm.generate_structured(
-                prompt=chat_history,
-                response_schema=DocAgentResponse,
-                system_instruction=DOC_AGENT_SYSTEM_PROMPT,
-                temperature=0.1,
-            )
-            # Format the output for the AssistantService parser
-            endpoints_list = [ep.model_dump() for ep in structured_resp.endpoints]
-            endpoints_json = json.dumps(endpoints_list, indent=2)
-
-            # Use response.text to preserve the full conversational code snippet
-            final_text = f"{response.text}\n\n```json endpoints\n{endpoints_json}\n```"
-
-        except Exception as exc:
-            logger.warning("Failed to generate structured response: %s", exc)
-            final_text = (
-                "I encountered an error formatting the final response. "
-                "However, I did find some documentation. Please try your request again."
-            )
+        # The prompt instructs the LLM to append the `json endpoints` block directly.
+        final_text = response.text or "I'm sorry, I couldn't generate a response."
 
         return GlobalState(
             messages=[AIMessage(content=final_text)],

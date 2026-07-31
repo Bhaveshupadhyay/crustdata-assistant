@@ -35,8 +35,9 @@ class SupervisorNode:
             })
 
         # 4. Ask the LLM to classify intent via structured output.
+        decision = None
         try:
-            decision: RouterDecision = await self._llm.generate_structured(
+            decision = await self._llm.generate_structured(
                 prompt=gemini_content,
                 response_schema=RouterDecision,
                 system_instruction=SUPERVISOR_SYSTEM_PROMPT,
@@ -51,16 +52,19 @@ class SupervisorNode:
 
         # 5. If routing to END (greeting/FAQ), generate a direct reply here.
         if next_action == RouteAction.END:
-            user_text = str(state.messages[-1].content)
-            fallback = await self._llm.generate_text(
-                prompt=user_text,
-                system_instruction=(
-                    "You are the Crustdata AI Assistant. Answer the user's greeting "
-                    "or general question in a friendly, concise manner. If they ask "
-                    "what you can do, explain that you help users find Crustdata API "
-                    "endpoints, parameters, and curl examples."
-                ),
-            )
+            if decision and getattr(decision, "direct_reply", None):
+                fallback = decision.direct_reply
+            else:
+                user_text = str(state.messages[-1].content)
+                fallback = await self._llm.generate_text(
+                    prompt=user_text,
+                    system_instruction=(
+                        "You are the Crustdata AI Assistant. Answer the user's greeting "
+                        "or general question in a friendly, concise manner. If they ask "
+                        "what you can do, explain that you help users find Crustdata API "
+                        "endpoints, parameters, and curl examples."
+                    ),
+                )
             updates.messages = [AIMessage(content=fallback)]
 
         return updates.get_updates()

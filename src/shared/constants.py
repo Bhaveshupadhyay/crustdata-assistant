@@ -27,3 +27,7 @@ class RouterDecision(BaseModel):
     next_action: RouteAction = Field(
         description="The next action or agent to route the conversation to."
     )
+    direct_reply: str | None = Field(
+        default=None,
+        description="If next_action is END, provide the direct conversational response here."
+    )
