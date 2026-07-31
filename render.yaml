@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: crustdata-ai-assistant-mvp
+    env: docker
+    region: oregon
+    plan: free
+
+      # Add any additional environment variables needed for your application here
+      # - key: DATABASE_URL
+      #   sync: false
