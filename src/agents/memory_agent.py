@@ -1,18 +1,19 @@
 """Agent responsible for invisibly extracting user preferences in the background."""
 
-import json
 import logging
-from typing import Any
 
 from pydantic import BaseModel
+
 from src.repositories.session_repository import SessionRepository
 from src.services.llm_service import LlmService
 
 logger = logging.getLogger(__name__)
 
+
 class Fact(BaseModel):
     key: str
     value: str
+
 
 class ExtractedPreferences(BaseModel):
     facts: list[Fact]
@@ -22,7 +23,7 @@ async def extract_and_save_preferences(
     user_message: str,
     conversation_id: str,
     session_repo: SessionRepository,
-    llm_service: LlmService
+    llm_service: LlmService,
 ) -> None:
     """Background task to extract facts from user message and merge into Redis."""
     try:
@@ -40,7 +41,7 @@ async def extract_and_save_preferences(
             prompt=prompt,
             response_schema=ExtractedPreferences,
             system_instruction=system_instruction,
-            temperature=0.0
+            temperature=0.0,
         )
 
         if not result.facts:

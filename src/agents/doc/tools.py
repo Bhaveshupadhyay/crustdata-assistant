@@ -9,11 +9,11 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Any
-from src.shared.constants import MessageRole
 
 import httpx
 from google.genai import types
+
+from src.shared.constants import MessageRole
 
 
 async def search_docs(query: str) -> dict:
@@ -25,7 +25,10 @@ async def search_docs(query: str) -> dict:
         "Referer": "https://docs.crustdata.com/for-agents/llms",
         "Accept": "*/*",
         "Origin": "https://docs.crustdata.com",
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Safari/605.1.15",
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
+            "(KHTML, like Gecko) Version/18.6 Safari/605.1.15"
+        ),
     }
 
     # We construct the payload format expected by the Mintlify assistant
@@ -43,7 +46,11 @@ async def search_docs(query: str) -> dict:
         "fp": "crustdata",
         "filter": {"groups": ["*"]},
         "currentPath": "/for-agents/llms",
-        "_": "eyJhbGciOiJFZERTQSJ9.eyJwIjpudWxsLCJzayI6bnVsbCwic3ViIjoiY3J1c3RkYXRhIiwiZXhwIjoxNzg1NDAzOTc2fQ.Ev_L57tQk4Wb3YlAdIdPLRRAahUB73UBMAkQz9dnSBlN4RnnPXWbvjwi_8NdjjGzmN1HC5W5alrlnvHcdyRBD%",
+        "_": (
+            "eyJhbGciOiJFZERTQSJ9.eyJwIjpudWxsLCJzayI6bnVsbCwic3ViIjoiY3J1c3RkYXRhIiwiZXhwI"
+            "joxNzg1NDAzOTc2fQ.Ev_L57tQk4Wb3YlAdIdPLRRAahUB73UBMAkQz9dnSBlN4RnnPXWbvjwi_8Nd"
+            "jjGzmN1HC5W5alrlnvHcdyRBD%"
+        ),
     }
 
     full_answer = ""
@@ -70,7 +77,7 @@ async def search_docs(query: str) -> dict:
                     except json.JSONDecodeError:
                         continue
 
-    print('tool',full_answer)
+    print("tool", full_answer)
     return {"result": full_answer}
 
 
@@ -81,8 +88,8 @@ async def search_crustdata() -> dict:
 
 def get_doc_tool_declarations() -> list:
     """Return Gemini function-calling tool declarations for the doc agent."""
-    
-    # We return the schemas manually since the google-genai SDK 
+
+    # We return the schemas manually since the google-genai SDK
     # explicitly blocks parsing python coroutine (async def) functions.
     return [
         types.Tool(
@@ -96,13 +103,13 @@ def get_doc_tool_declarations() -> list:
                             "query": {"type": "STRING", "description": "The search query."}
                         },
                         "required": ["query"],
-                    }
+                    },
                 ),
                 types.FunctionDeclaration(
                     name="search_crustdata",
                     description="Search Crustdata for specific data or information.",
-                    parameters={"type": "OBJECT", "properties": {}}
-                )
+                    parameters={"type": "OBJECT", "properties": {}},
+                ),
             ]
         )
     ]

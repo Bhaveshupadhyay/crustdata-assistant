@@ -1,29 +1,27 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
 import uuid
 from typing import Any
 
-import asyncio
 from fastapi import HTTPException
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
-from src.agents.memory_agent import extract_and_save_preferences
-from src.shared.constants import MessageRole
-
 from src.agents.graph_workflow import build_assistant_graph
-from src.schema.chat import ChatResponse, EndpointSnippet
+from src.agents.memory_agent import extract_and_save_preferences
 from src.repositories.session_repository import SessionRepository
+from src.schema.chat import ChatResponse, EndpointSnippet
 from src.services.llm_service import LlmService
+from src.shared.constants import MessageRole
 
 logger = logging.getLogger(__name__)
 
 
 class AssistantService:
-
     def __init__(
         self,
         llm_service: LlmService,
@@ -70,7 +68,9 @@ class AssistantService:
             }
 
             # LangGraph requires a thread_id for the checkpointer.
-            config = RunnableConfig(configurable={"thread_id": conversation_id or str(uuid.uuid4())})
+            config = RunnableConfig(
+                configurable={"thread_id": conversation_id or str(uuid.uuid4())}
+            )
 
             # 4. Run the LangGraph execution flow.
             final_state = await self._graph.ainvoke(initial_state, config=config)
@@ -85,7 +85,6 @@ class AssistantService:
 
             if not raw_answer:
                 raw_answer = "I'm sorry, I couldn't generate a response. Please try again."
-
 
             # 8. Save user preferences.
             if conversation_id:
@@ -102,17 +101,11 @@ class AssistantService:
                 try:
                     endpoints_data = json.loads(json_match.group(1))
                     endpoints = [EndpointSnippet(**ep) for ep in endpoints_data]
-                    raw_answer = raw_answer[:json_match.start()].strip()
+                    raw_answer = raw_answer[: json_match.start()].strip()
                 except json.JSONDecodeError:
                     logger.warning("Failed to parse endpoints JSON block")
 
-            return ChatResponse(
-                answer=raw_answer,
-                endpoints=endpoints
-            )
+            return ChatResponse(answer=raw_answer, endpoints=endpoints)
         except Exception as exc:
             logger.exception("Assistant error")
-            raise HTTPException(
-                status_code=500, detail=f"Assistant error: {exc}"
-            ) from exc
-
+            raise HTTPException(status_code=500, detail=f"Assistant error: {exc}") from exc

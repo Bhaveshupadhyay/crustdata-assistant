@@ -1,18 +1,19 @@
 from typing import Any
+
 from pydantic import BaseModel, Field
 
-from src.schema.chat import ServerActionType, EndpointSnippet
+from src.schema.chat import EndpointSnippet, ServerActionType
 
 
 class DocAgentResponse(BaseModel):
     """Structured response format expected from the Doc Agent."""
 
-    explanation: str = Field(
-        description="Markdown explanation answering the user's question."
-    )
+    explanation: str = Field(description="Markdown explanation answering the user's question.")
     endpoints: list[EndpointSnippet] = Field(
         description="List of relevant API endpoints.", default_factory=list
     )
+
+
 class ToolCall(BaseModel):
     name: str
     args: dict[str, Any]

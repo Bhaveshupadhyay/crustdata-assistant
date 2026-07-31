@@ -3,18 +3,19 @@ from __future__ import annotations
 import json
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, TypeVar, Type
+from typing import Any, Type, TypeVar
 
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-from src.models.llm import LLMResponse, ToolCall
 from src.core.settings import settings
+from src.models.llm import LLMResponse, ToolCall
 from src.shared.constants import MessageRole
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
+
 
 class LlmService(ABC):
     """Abstract base class representing an LLM client interface."""
@@ -66,14 +67,10 @@ class GeminiLlmService(LlmService):
         self._client = genai.Client(api_key=settings.gemini_api_key)
         self._model = settings.gemini_model
 
-    def _format_contents(
-        self, prompt: str | list[dict[str, Any]]
-    ) -> list[types.Content]:
+    def _format_contents(self, prompt: str | list[dict[str, Any]]) -> list[types.Content]:
         """Convert a prompt (string or chat history dicts) to Gemini-compatible contents."""
         if isinstance(prompt, str):
-            return [
-                types.Content(role=MessageRole.USER, parts=[types.Part.from_text(text=prompt)])
-            ]
+            return [types.Content(role=MessageRole.USER, parts=[types.Part.from_text(text=prompt)])]
 
         contents: list[types.Content] = []
         for msg in prompt:
@@ -93,7 +90,7 @@ class GeminiLlmService(LlmService):
                             function_call=types.FunctionCall(
                                 name=call["name"], args=call["args"], id=call.get("id")
                             ),
-                            thought_signature=ts_bytes
+                            thought_signature=ts_bytes,
                         )
                     )
 
@@ -102,9 +99,7 @@ class GeminiLlmService(LlmService):
                     parts.append(
                         types.Part(
                             function_response=types.FunctionResponse(
-                                name=resp["name"], 
-                                response=resp["response"],
-                                id=resp.get("id")
+                                name=resp["name"], response=resp["response"], id=resp.get("id")
                             )
                         )
                     )
@@ -113,7 +108,6 @@ class GeminiLlmService(LlmService):
                 contents.append(types.Content(role=role, parts=parts))
 
         return contents
-
 
     async def generate(
         self,
@@ -142,7 +136,11 @@ class GeminiLlmService(LlmService):
             )
 
             tool_calls = []
-            if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
+            if (
+                response.candidates
+                and response.candidates[0].content
+                and response.candidates[0].content.parts
+            ):
                 for p in response.candidates[0].content.parts:
                     if p.function_call:
                         args_dict = dict(p.function_call.args) if p.function_call.args else {}
@@ -150,10 +148,10 @@ class GeminiLlmService(LlmService):
                         call_id = getattr(p.function_call, "id", None)
                         tool_calls.append(
                             ToolCall(
-                                name=p.function_call.name, 
-                                args=args_dict, 
-                                id=call_id, 
-                                thought_signature_hex=ts_hex
+                                name=p.function_call.name,
+                                args=args_dict,
+                                id=call_id,
+                                thought_signature_hex=ts_hex,
                             )
                         )
 

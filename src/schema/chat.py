@@ -1,13 +1,17 @@
 from enum import Enum
+
 from pydantic import BaseModel, Field
 
 
 class ClientActionType(str, Enum):
     """Actions the frontend sends TO the backend"""
+
     GET_API_TOKEN = "get_api_token"
+
 
 class ServerActionType(str, Enum):
     """Actions the backend sends TO the frontend UI"""
+
     GET_API_TOKEN = "get_api_token"
 
 
@@ -23,13 +27,16 @@ class ChatRequest(BaseModel):
         default=None,
         description="Optional conversation ID for multi-turn context (future use).",
     )
-    action_type: ClientActionType| None = None
+    action_type: ClientActionType | None = None
 
 
 class ChatResponse(BaseModel):
     answer: str = Field(..., description="Natural-language answer to the user's question.")
-    endpoints: list["EndpointSnippet"] = Field(default_factory=list, description="Extracted API endpoints")
+    endpoints: list["EndpointSnippet"] = Field(
+        default_factory=list, description="Extracted API endpoints"
+    )
     action_type: ServerActionType | None = None
+
 
 class EndpointSnippet(BaseModel):
     """A single API endpoint recommended by the assistant."""
@@ -38,6 +45,7 @@ class EndpointSnippet(BaseModel):
     url: str = Field(..., description="Full endpoint URL")
     description: str = Field(..., description="What this endpoint does")
     curl_example: str = Field(..., description="Ready-to-use curl command")
+
 
 class ChatMessage(BaseModel):
     role: str

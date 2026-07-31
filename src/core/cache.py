@@ -2,17 +2,20 @@ import inspect
 import json
 import logging
 from functools import wraps
-from typing import Optional, Type, Any
-from core.client import get_redis_client
+from typing import Any, Optional, Type
 
 from pydantic import TypeAdapter
 
+from core.client import get_redis_client
+
 logger = logging.getLogger(__name__)
+
+
 def cached(
-        namespace: str = "default",
-        key: Optional[list[str]] = None,
-        redis_ttl: int = 3600,
-        return_type: Optional[Type[Any]] = None,
+    namespace: str = "default",
+    key: Optional[list[str]] = None,
+    redis_ttl: int = 3600,
+    return_type: Optional[Type[Any]] = None,
 ):
     def decorator(func):
         @wraps(func)
@@ -24,9 +27,9 @@ def cached(
             func_args = bound_args.arguments
 
             if not key:
-                return Exception('Key is required.')
+                return Exception("Key is required.")
             key_parts = [str(func_args.get(k)) for k in key]
-            cache_key = get_redis_key(namespace=namespace,key_parts=key_parts)
+            cache_key = get_redis_key(namespace=namespace, key_parts=key_parts)
 
             cached_data = await get_redis_client().get(cache_key)
 
@@ -42,23 +45,29 @@ def cached(
 
             if result is not None:
                 if return_type:
-                    data_to_store = TypeAdapter(return_type).dump_json(result).decode('utf-8')
+                    data_to_store = TypeAdapter(return_type).dump_json(result).decode("utf-8")
                 else:
                     data_to_store = json.dumps(result)
 
                 await get_redis_client().set(key=cache_key, ex=redis_ttl, value=data_to_store)
             return result
+
         return wrapper
+
     return decorator
 
 
 async def insert_redis_data(
-        key: str,
-        namespace: str = "default",
-        redis_ttl: int = 3600,
-        data: Any = None,
+    key: str,
+    namespace: str = "default",
+    redis_ttl: int = 3600,
+    data: Any = None,
 ):
-    await get_redis_client().set(key=get_redis_key(namespace=namespace,key_parts=[key]), value=json.dumps(data), ex=redis_ttl)
+    await get_redis_client().set(
+        key=get_redis_key(namespace=namespace, key_parts=[key]),
+        value=json.dumps(data),
+        ex=redis_ttl,
+    )
 
 
 def get_redis_key(namespace: str, key_parts: list[str]) -> str:

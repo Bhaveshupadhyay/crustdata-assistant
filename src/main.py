@@ -32,6 +32,7 @@ app.add_middleware(
 
 app.include_router(routers)
 
+
 @app.get("/health", response_model=HealthResponse, tags=["system"])
 async def health() -> HealthResponse:
     return HealthResponse(version=settings.app_version)

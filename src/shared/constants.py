@@ -16,6 +16,7 @@ class RouteAction(StrEnum):
 
 class MessageRole(StrEnum):
     """Message roles used across the application."""
+
     USER = "user"
     MODEL = "model"
     SYSTEM = "system"
