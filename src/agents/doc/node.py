@@ -36,7 +36,6 @@ class DocNode:
             tools=tools,
             temperature=0.2,
         )
-        print('fist_response', response,state.messages)
         if response.tool_calls:
             # Return an AIMessage with tool_calls. LangGraph will route to doc_tools.
             lc_tool_calls = []
