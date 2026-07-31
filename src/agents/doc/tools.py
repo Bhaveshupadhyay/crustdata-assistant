@@ -73,7 +73,6 @@ async def search_docs(query: str) -> dict:
                     except json.JSONDecodeError:
                         continue
 
-    print('tool',full_answer)
     return {"result": full_answer}
 
 
