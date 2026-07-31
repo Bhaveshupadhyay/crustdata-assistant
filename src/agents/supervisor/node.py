@@ -4,7 +4,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 
 from src.agents.supervisor.prompt import SUPERVISOR_SYSTEM_PROMPT
 from src.services.llm_service import LlmService
-from src.shared.constants import RouteAction, RouterDecision
+from src.shared.constants import RouteAction, RouterDecision, MessageRole
 from src.shared.state import GlobalState
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ class SupervisorNode:
         # 3. Build Gemini-compatible message history for routing.
         gemini_content: list[dict] = []
         for msg in state.messages:
-            role = "user" if isinstance(msg, HumanMessage) else "model"
+            role = MessageRole.USER if isinstance(msg, HumanMessage) else MessageRole.MODEL
             gemini_content.append({
                 "role": role,
                 "content": msg.content,

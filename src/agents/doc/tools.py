@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
+from typing import Any
+from src.shared.constants import MessageRole
 
 import httpx
 from google.genai import types
@@ -33,7 +35,7 @@ async def search_docs(query: str) -> dict:
             {
                 "id": str(uuid.uuid4()),
                 "createdAt": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-                "role": "user",
+                "role": MessageRole.USER,
                 "content": query,
                 "parts": [{"type": "text", "text": query}],
             }

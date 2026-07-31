@@ -1,6 +1,7 @@
 from typing import Any
 
 from langchain_core.messages import AIMessage, AnyMessage, HumanMessage, ToolMessage, SystemMessage
+from src.shared.constants import MessageRole
 
 
 def format_langchain_messages_for_llm(
@@ -12,12 +13,12 @@ def format_langchain_messages_for_llm(
     chat_history: list[dict[str, Any]] = []
     for msg in messages:
         if isinstance(msg, HumanMessage):
-            chat_history.append({"role": "user", "content": str(msg.content)})
+            chat_history.append({"role": MessageRole.USER, "content": str(msg.content)})
         elif isinstance(msg, AIMessage):
             if msg.tool_calls:
                 chat_history.append(
                     {
-                        "role": "model",
+                        "role": MessageRole.MODEL,
                         "tool_calls": [
                             {"name": tc["name"], "args": tc["args"], "id": tc.get("id")}
                             for tc in msg.tool_calls
@@ -26,11 +27,11 @@ def format_langchain_messages_for_llm(
                     }
                 )
             else:
-                chat_history.append({"role": "model", "content": str(msg.content)})
+                chat_history.append({"role": MessageRole.MODEL, "content": str(msg.content)})
         elif isinstance(msg, ToolMessage):
             chat_history.append(
                 {
-                    "role": "user",
+                    "role": MessageRole.USER,
                     "tool_responses": [
                         {
                             "name": msg.name,
@@ -41,5 +42,5 @@ def format_langchain_messages_for_llm(
                 }
             )
         elif isinstance(msg, SystemMessage):
-            chat_history.append({"role": "user", "content": str(msg.content)})
+            chat_history.append({"role": MessageRole.USER, "content": str(msg.content)})
     return chat_history

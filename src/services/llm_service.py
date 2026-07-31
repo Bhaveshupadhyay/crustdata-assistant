@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from src.models.llm import LLMResponse, ToolCall
 from src.core.settings import settings
+from src.shared.constants import MessageRole
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
@@ -71,12 +72,12 @@ class GeminiLlmService(LlmService):
         """Convert a prompt (string or chat history dicts) to Gemini-compatible contents."""
         if isinstance(prompt, str):
             return [
-                types.Content(role="user", parts=[types.Part.from_text(text=prompt)])
+                types.Content(role=MessageRole.USER, parts=[types.Part.from_text(text=prompt)])
             ]
 
         contents: list[types.Content] = []
         for msg in prompt:
-            role = "user" if msg.get("role") == "user" else "model"
+            role = MessageRole.USER if msg.get("role") == MessageRole.USER else MessageRole.MODEL
             parts = []
 
             if msg.get("content"):

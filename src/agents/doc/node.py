@@ -9,6 +9,7 @@ from src.agents.doc.prompt import DOC_AGENT_SYSTEM_PROMPT
 from src.shared.utils import format_langchain_messages_for_llm
 from src.agents.doc.tools import get_doc_tool_declarations
 from src.services.llm_service import LlmService
+from src.shared.constants import MessageRole
 from src.shared.state import GlobalState
 
 logger = logging.getLogger(__name__)
@@ -60,10 +61,10 @@ class DocNode:
         # If no tool calls were requested, the model is ready to answer.
         try:
             # We add a final prompt to force the structured output
-            chat_history.append({"role": "model", "content": response.text})
+            chat_history.append({"role": MessageRole.MODEL, "content": response.text})
             chat_history.append(
                 {
-                    "role": "user",
+                    "role": MessageRole.USER,
                     "content": "Now that you have all the information, provide a complete, detailed answer to the user's question, including any requested code snippets or technical details. If you generate or receive code, write the code exactly as it is—do not shorten, summarize, or truncate it. Also, extract the relevant endpoints.",
                 }
             )

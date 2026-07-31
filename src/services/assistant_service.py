@@ -12,6 +12,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
 from src.agents.memory_agent import extract_and_save_preferences
+from src.shared.constants import MessageRole
 
 from src.agents.graph_workflow import build_assistant_graph
 from src.schema.chat import ChatResponse, EndpointSnippet
@@ -47,7 +48,7 @@ class AssistantService:
             # 2. Convert history dicts to LangChain message objects.
             messages: list[HumanMessage | AIMessage | SystemMessage] = []
             for msg in history_dicts:
-                if msg.get("role") == "user":
+                if msg.get("role") == MessageRole.USER:
                     messages.append(HumanMessage(content=msg["content"]))
                 else:
                     messages.append(AIMessage(content=msg["content"]))
