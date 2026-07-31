@@ -1,0 +1,27 @@
+# Git
+.git/
+.gitignore
+
+# Environments
+.env
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+
+# IDEs
+.idea/
+.vscode/
+
+# GitHub Actions
+.github/
+
+# Render and local specific
+render.yaml
+graphify-out/
