@@ -12,7 +12,7 @@ from src.shared.constants import RouteAction
 def add_messages_limited(
     left: list[AnyMessage], right: list[AnyMessage] | AnyMessage
 ) -> list[AnyMessage]:
-    from langchain_core.messages import ToolMessage, AIMessage, HumanMessage, SystemMessage
+    from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
     messages = add_messages(left, right)
     if len(messages) <= 6:
