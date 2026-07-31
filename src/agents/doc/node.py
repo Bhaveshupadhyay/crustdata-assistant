@@ -4,7 +4,7 @@ import uuid
 
 from langchain_core.messages import AIMessage
 
-from models.llm import DocAgentResponse
+from src.models.llm import DocAgentResponse
 from src.agents.doc.prompt import DOC_AGENT_SYSTEM_PROMPT
 from src.agents.doc.tools import get_doc_tool_declarations
 from src.services.llm_service import LlmService

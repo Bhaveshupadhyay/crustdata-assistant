@@ -6,7 +6,7 @@ from typing import Any, Optional, Type
 
 from pydantic import TypeAdapter
 
-from core.client import get_redis_client
+from src.core.client import get_redis_client
 
 logger = logging.getLogger(__name__)
 def cached(
