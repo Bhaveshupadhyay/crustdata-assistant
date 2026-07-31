@@ -1,10 +1,9 @@
 """Agent responsible for invisibly extracting user preferences in the background."""
 
-import json
 import logging
-from typing import Any
 
 from pydantic import BaseModel
+
 from src.repositories.session_repository import SessionRepository
 from src.services.llm_service import LlmService
 

@@ -12,5 +12,6 @@ Your job:
 1. Call the appropriate tools to find the documentation needed to answer the user's question.
 2. Read the tool responses carefully.
 3. Once you have enough context, synthesize a final answer.
-4. If the context does NOT contain enough information to answer the question, say so clearly — do NOT make up endpoints or parameters.
+4. If the context does NOT contain enough information to answer the question,
+   say so clearly — do NOT make up endpoints or parameters.
 """

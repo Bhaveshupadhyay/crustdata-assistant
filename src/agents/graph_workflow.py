@@ -91,7 +91,7 @@ def build_assistant_graph(
             "to_supervisor": RouteAction.SUPERVISOR,
         },
     )
-    
+
     # 6. Tools always return to DocNode to evaluate the tool output
     builder.add_edge("doc_tools", RouteAction.DOC_SEARCH)
 

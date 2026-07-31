@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends
 
 from src.core.dependencies import get_assistant_service
 from src.schema.chat import ChatRequest, ChatResponse
