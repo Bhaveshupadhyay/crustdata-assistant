@@ -85,7 +85,7 @@ class DocNode:
             endpoints_json = json.dumps(endpoints_list, indent=2)
 
             # Use response.text to preserve the full conversational code snippet
-            final_text = f"{response.text}\n\n```json\n{endpoints_json}\n```"
+            final_text = f"{response.text}\n\n```json endpoints\n{endpoints_json}\n```"
 
         except Exception as exc:
             logger.warning("Failed to generate structured response: %s", exc)
