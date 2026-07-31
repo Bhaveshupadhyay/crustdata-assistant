@@ -12,7 +12,17 @@ from src.shared.constants import RouteAction
 def add_messages_limited(
     left: list[AnyMessage], right: list[AnyMessage] | AnyMessage
 ) -> list[AnyMessage]:
-    return add_messages(left, right)[-6:]  # type: ignore
+    from langchain_core.messages import ToolMessage
+
+    messages = add_messages(left, right)
+    if len(messages) <= 6:
+        return messages
+
+    sliced = messages[-6:]
+    while sliced and isinstance(sliced[0], ToolMessage):
+        sliced.pop(0)
+
+    return sliced
 
 class GlobalState(BaseModel):
     """Shared state passed between supervisor and worker agents.
